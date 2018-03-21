@@ -125,4 +125,18 @@ BEGIN
     CONTROL         "",IDC_LED_SCROLL,"Static",SS_CENTER|SS_NOTIFY,580,16,4,3
 END
 
+MAIN_MENU MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "E&xit", CMD_EXIT
+    END
+    POPUP "K&eyboard"
+    BEGIN
+        MENUITEM "&Standard - big", IDM_VIEW_STANDARD_BIG
+        MENUITEM "S&hort - big", IDM_VIEW_SHORT_BIG
+        MENUITEM "&Standard - small", IDM_VIEW_STANDARD_SMALL
+        MENUITEM "S&hort - small", IDM_VIEW_SHORT_SMALL
+    END
+END
 /* EOF */

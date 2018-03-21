@@ -15,6 +15,13 @@
 
 /* TYPES **********************************************************************/
 
+enum {
+    OSK_LAYOUT_STANDARD_BIG=0,
+    OSK_LAYOUT_STANDARD_SMALL=1,
+    OSK_LAYOUT_SHORT_BIG=2,
+    OSK_LAYOUT_SHORT_SMALL=3
+};
+
 typedef struct
 {
     HINSTANCE  hInstance;
@@ -23,6 +30,8 @@ typedef struct
     UINT_PTR   iTimer;
     /* FIXME: To be deleted when ReactOS will support WS_EX_NOACTIVATE */
     HWND       hActiveWnd;
+    DWORD      layout;
+    DWORD      action;
 } OSK_GLOBALS;
 
 /* DEFINES ********************************************************************/

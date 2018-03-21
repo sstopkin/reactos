@@ -295,6 +295,95 @@ BOOL OSK_ReleaseKey(WORD ScanCode)
     return TRUE;
 }
 
+static void save_config(void)
+{
+    HKEY hKey;
+
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("SOFTWARE\\Microsoft\\OSK"), 0, NULL, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hKey, NULL) != ERROR_SUCCESS)
+    {
+        return;
+    }
+
+    RegSetValueEx(hKey, TEXT("layout"), 0, REG_DWORD, (const BYTE*)&Globals.layout, sizeof(Globals.layout));
+
+    RegCloseKey(hKey);
+}
+
+static void load_config(void)
+{
+    DWORD tmp;
+    HKEY hKey;
+
+    /* If no settings are found in the registry, then use the default options */
+    Globals.layout = OSK_LAYOUT_STANDARD_BIG;
+
+    /* Get the configuration based on what version of Windows that's being used */
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("SOFTWARE\\Microsoft\\OSK"), 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) 
+    {
+        /* Try to load last selected layout */
+        tmp = sizeof(Globals.layout);
+        if (RegQueryValueEx(hKey, TEXT("layout"), NULL, NULL, (LPBYTE)&Globals.layout, &tmp) != ERROR_SUCCESS)
+            Globals.layout = OSK_LAYOUT_STANDARD_BIG;
+
+        /* close the key */
+        RegCloseKey(hKey);
+    }
+
+}
+
+/***********************************************************************
+*
+*        OSK_Menu
+*/
+static int OSK_MenuCommand(WPARAM wParam, HWND hWnd)
+{
+    switch (wParam)
+    {
+        case CMD_EXIT:
+            PostMessage(Globals.hMainWnd, WM_CLOSE, 0, 0l);
+            break;
+        case IDM_VIEW_STANDARD_BIG:
+            if (Globals.layout != OSK_LAYOUT_STANDARD_BIG)
+            {
+                Globals.layout = OSK_LAYOUT_STANDARD_BIG;
+                Globals.action = IDM_VIEW_STANDARD_BIG;
+                DestroyWindow(hWnd);
+                save_config();
+            }
+            break;
+        case IDM_VIEW_STANDARD_SMALL:
+            if (Globals.layout != OSK_LAYOUT_STANDARD_SMALL)
+            {
+                Globals.layout = OSK_LAYOUT_STANDARD_SMALL;
+                Globals.action = IDM_VIEW_STANDARD_SMALL;
+                DestroyWindow(hWnd);
+                save_config();
+            }
+            break;
+        case IDM_VIEW_SHORT_BIG:
+            if (Globals.layout != OSK_LAYOUT_SHORT_BIG)
+            {
+                Globals.layout = OSK_LAYOUT_SHORT_BIG;
+                Globals.action = IDM_VIEW_STANDARD_BIG;
+                DestroyWindow(hWnd);
+                save_config();
+            }
+            break;
+        case IDM_VIEW_SHORT_SMALL:
+            if (Globals.layout != OSK_LAYOUT_SHORT_SMALL)
+            {
+                Globals.layout = OSK_LAYOUT_SHORT_SMALL;
+                Globals.action = IDM_VIEW_SHORT_SMALL;
+                DestroyWindow(hWnd);
+                save_config();
+            }
+            break;
+        default:
+            break;
+    }
+    return 0;
+}
+
 /***********************************************************************
  *
  *       OSK_DlgProc
@@ -305,6 +394,38 @@ INT_PTR APIENTRY OSK_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         case WM_INITDIALOG:
             OSK_DlgInitDialog(hDlg);
+            if (Globals.layout == OSK_LAYOUT_STANDARD_BIG)
+            {
+                CheckMenuRadioItem(GetMenu(hDlg),
+                    IDM_VIEW_STANDARD_BIG,
+                    IDM_VIEW_SHORT_SMALL,
+                    IDM_VIEW_STANDARD_BIG,
+                    MF_BYCOMMAND);
+            }
+            else if (Globals.layout == OSK_LAYOUT_STANDARD_SMALL)
+            {
+                CheckMenuRadioItem(GetMenu(hDlg),
+                    IDM_VIEW_STANDARD_BIG,
+                    IDM_VIEW_SHORT_SMALL,
+                    IDM_VIEW_STANDARD_SMALL,
+                    MF_BYCOMMAND);
+            }
+            else if (Globals.layout == OSK_LAYOUT_SHORT_BIG)
+            {
+                CheckMenuRadioItem(GetMenu(hDlg),
+                    IDM_VIEW_STANDARD_BIG,
+                    IDM_VIEW_SHORT_SMALL,
+                    IDM_VIEW_SHORT_BIG,
+                    MF_BYCOMMAND);
+            }
+            else if (Globals.layout == OSK_LAYOUT_SHORT_SMALL)
+            {
+                CheckMenuRadioItem(GetMenu(hDlg),
+                    IDM_VIEW_STANDARD_BIG,
+                    IDM_VIEW_SHORT_SMALL,
+                    IDM_VIEW_SHORT_SMALL,
+                    MF_BYCOMMAND);
+            }
             return TRUE;
 
         case WM_TIMER:
@@ -340,9 +461,11 @@ INT_PTR APIENTRY OSK_DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
                 EndDialog(hDlg, FALSE);
             else if (wParam != IDC_STATIC)
                 OSK_DlgCommand(wParam, (HWND) lParam);
+                OSK_MenuCommand(wParam, hDlg);
             break;
 
         case WM_CLOSE:
+            Globals.action = IDC_STATIC;
             OSK_DlgClose();
             break;
     }
@@ -360,6 +483,8 @@ int WINAPI _tWinMain(HINSTANCE hInstance,
                      int show)
 {
     HANDLE hMutex;
+    // MSG msg;
+    DWORD dwLayout;
 
     UNREFERENCED_PARAMETER(prev);
     UNREFERENCED_PARAMETER(cmdline);
@@ -368,18 +493,32 @@ int WINAPI _tWinMain(HINSTANCE hInstance,
     ZeroMemory(&Globals, sizeof(Globals));
     Globals.hInstance = hInstance;
 
+    load_config();
+
     /* Rry to open a mutex for a single instance */
     hMutex = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, "osk");
 
     if (!hMutex)
     {
-        /* Mutex doesn’t exist. This is the first instance so create the mutex. */
+        /* Mutex doesnï¿½t exist. This is the first instance so create the mutex. */
         hMutex = CreateMutexA(NULL, FALSE, "osk");
 
-        DialogBox(hInstance,
-                  MAKEINTRESOURCE(MAIN_DIALOG),
-                  GetDesktopWindow(),
-                  OSK_DlgProc);
+        do {
+            if (Globals.layout == OSK_LAYOUT_STANDARD_SMALL)
+                dwLayout = KEYBOARD_STANDARD_SMALL;
+            else if (Globals.layout == OSK_LAYOUT_SHORT_BIG)
+                dwLayout = KEYBOARD_SHORT_BIG;
+            else if (Globals.layout == OSK_LAYOUT_SHORT_SMALL)
+                dwLayout = KEYBOARD_SHORT_SMALL;
+            else
+                dwLayout = KEYBOARD_STANDARD_BIG;
+
+            DialogBox(hInstance, MAKEINTRESOURCE(dwLayout), GetDesktopWindow(), OSK_DlgProc);
+            // while (GetMessage(&msg, NULL, 0, 0)) {
+            //     TranslateMessage(&msg);
+            //     DispatchMessage(&msg);
+            // }
+        } while (Globals.action != IDC_STATIC);
 
         /* Delete the mutex */
         if (hMutex) CloseHandle(hMutex);

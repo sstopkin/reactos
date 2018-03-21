@@ -6,11 +6,21 @@
  * PROGRAMMERS:     Denis ROBERT
  */
 
-#define MAIN_DIALOG             2000
+#define KEYBOARD_STANDARD_BIG   2000
+#define KEYBOARD_STANDARD_SMALL 2001
+#define KEYBOARD_SHORT_BIG      2002
+#define KEYBOARD_SHORT_SMALL    2003
 
 #define IDC_LED_NUM             100
 #define IDC_LED_CAPS            101
 #define IDC_LED_SCROLL          102
+
+#define CMD_EXIT                103
+
+#define IDM_VIEW_STANDARD_BIG   150
+#define IDM_VIEW_STANDARD_SMALL 151
+#define IDM_VIEW_SHORT_BIG      152
+#define IDM_VIEW_SHORT_SMALL    153
 
 #define IDI_OSK                 200
 #define IDI_BACK                201
